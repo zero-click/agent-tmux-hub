@@ -245,9 +245,7 @@ def detect_provider(
     command = current_command.lower()
     window = window_name.lower()
     title = pane_title.lower()
-    output = captured_output.lower()
-
-    if window.startswith(DEFAULT_WINDOW_NAME) or "agent-tmux-hub" in title or "agent-tmux-hub" in output:
+    if window.startswith(DEFAULT_WINDOW_NAME) or "agent-tmux-hub" in title:
         return None
 
     for provider, signature in PROVIDER_SIGNATURES.items():
