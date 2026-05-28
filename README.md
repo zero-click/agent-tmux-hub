@@ -31,6 +31,22 @@ agent-tmux-hub/
         └── cli.py
 ```
 
+## Installation
+
+For local development or personal use, install it in editable mode:
+
+```bash
+cd ~/code/agent-tmux-hub
+python3 -m pip install -e .
+```
+
+If the `agent-tmux-hub` command is not on your `PATH`, install into the user site and run it from the user bin directory:
+
+```bash
+python3 -m pip install --user -e .
+~/.local/bin/agent-tmux-hub --window
+```
+
 ## Features
 
 - Scans tmux panes for known agent CLIs
