@@ -4,6 +4,8 @@ A tmux-based control panel for watching and approving multiple agent CLI panes.
 
 `agent-tmux-hub` is built for a specific but common workflow problem: you have several Copilot, Claude Code, or Codex panes running in tmux, and some of them are waiting for confirmation while others are still working. This tool gives you one place to scan, filter, jump to, and approve those panes.
 
+![agent-tmux-hub screenshot](assets/agent-tmux-hub-screenshot.png)
+
 ## Requirements
 
 - Python 3.11+
