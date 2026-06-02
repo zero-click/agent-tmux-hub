@@ -59,6 +59,7 @@ python3 -m pip install --user -e .
   - Claude Code
   - Codex
 - Detects common waiting-for-confirmation states
+- Supports numbered menu prompts such as `1. ... / 2. ... / 3. ...`
 - Classifies panes as `waiting`, `running`, or `idle`
 - Shows a detail panel with recent output and context
 - Extracts lightweight decision metadata:
@@ -93,6 +94,7 @@ python src/agent_tmux_hub/cli.py
 | Key | Action |
 | --- | --- |
 | `j` / `k` | Move selection down / up |
+| `1`-`9` | Choose a numbered menu option in the selected pane |
 | `h` | Toggle help overlay |
 | `tab` | Switch filter: `all`, `waiting`, `low-risk` |
 | `a` | Approve the selected item with the detected action |

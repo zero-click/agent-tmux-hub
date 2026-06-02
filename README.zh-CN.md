@@ -60,6 +60,7 @@ python3 -m pip install --user -e .
   - Claude Code
   - Codex
 - 识别常见的确认等待状态
+- 支持 `1. ... / 2. ... / 3. ...` 这类编号菜单提示
 - 将 pane 分类为 `waiting`、`running`、`idle`
 - 在详情面板显示最近输出和上下文
 - 提取轻量决策信息：
@@ -94,6 +95,7 @@ python src/agent_tmux_hub/cli.py
 | 按键 | 操作 |
 | --- | --- |
 | `j` / `k` | 向下 / 向上移动选择 |
+| `1`-`9` | 为当前选中的编号菜单直接选择对应选项 |
 | `h` | 显示或隐藏帮助层 |
 | `tab` | 切换筛选：`all`、`waiting`、`low-risk` |
 | `a` | 按检测到的动作批准当前项 |
