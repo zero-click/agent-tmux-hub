@@ -51,6 +51,9 @@ WAIT_RULES = [
     (re.compile(r"enter to confirm", re.IGNORECASE), "enter", ["Enter"]),
 ]
 
+MENU_OPTION_RE = re.compile(r"^(?P<marker>[❯>])?\s*(?P<number>\d+)\.\s+")
+MENU_HINT_RE = re.compile(r"(enter to select|↑/↓ to select|up/down to select)", re.IGNORECASE)
+
 PROVIDER_SIGNATURES = {
     "copilot": {
         "commands": {"copilot"},
@@ -208,12 +211,67 @@ def classify_prompt(lines: list[str]) -> tuple[str, str]:
     return "review", "low"
 
 
+def parse_numbered_menu(lines: list[str]) -> tuple[list[int], int | None] | None:
+    if not any(MENU_HINT_RE.search(line) for line in lines):
+        return None
+
+    options: list[int] = []
+    selected: int | None = None
+    for line in lines:
+        cleaned = re.sub(r"^[│\s]+", "", line).rstrip()
+        match = MENU_OPTION_RE.match(cleaned)
+        if not match:
+            continue
+        number = int(match.group("number"))
+        options.append(number)
+        if match.group("marker"):
+            selected = number
+
+    deduped_options = sorted(set(options))
+    if len(deduped_options) < 2:
+        return None
+    return deduped_options, selected
+
+
+def action_keys_for_menu_choice(lines: list[str], choice: int) -> list[str] | None:
+    parsed = parse_numbered_menu(lines)
+    if not parsed:
+        return None
+
+    options, selected = parsed
+    if choice not in options:
+        return None
+
+    current = selected if selected in options else options[0]
+    current_index = options.index(current)
+    target_index = options.index(choice)
+    delta = target_index - current_index
+    keys: list[str] = []
+    if delta > 0:
+        keys.extend(["Down"] * delta)
+    elif delta < 0:
+        keys.extend(["Up"] * (-delta))
+    keys.append("Enter")
+    return keys
+
+
+def format_action_hint(action_keys: list[str] | None, lines: list[str]) -> str:
+    parsed = parse_numbered_menu(lines)
+    if parsed:
+        options, _ = parsed
+        if options:
+            return f"1-{options[-1]}/Ent"
+    return " ".join(action_keys or ["-"])
+
+
 def detect_action(lines: list[str]) -> tuple[str, str, list[str] | None, str, str, str]:
     recent_lines = [line for line in lines if line.strip()][-14:]
-    joined = "\n".join(recent_lines)
-    if re.search(r"1\.\s*yes", joined, re.IGNORECASE) and re.search(r"enter to select", joined, re.IGNORECASE):
+    parsed_menu = parse_numbered_menu(recent_lines)
+    if parsed_menu:
+        options, selected = parsed_menu
         category, risk = classify_prompt(recent_lines)
-        return "waiting", "menu confirm: Yes selected", ["Enter"], category, risk, extract_target(recent_lines)
+        selected_text = f" selected={selected}" if selected is not None else ""
+        return "waiting", f"menu choice: {options[0]}-{options[-1]}{selected_text}", ["Enter"], category, risk, extract_target(recent_lines)
     for line in reversed(recent_lines):
         stripped = line.strip()
         if not stripped:
@@ -301,7 +359,7 @@ def list_agent_panes(previous_fingerprints: dict[str, str]) -> list[PaneRecord]:
                 category=category,
                 risk=risk,
                 target=target,
-                action_hint=" ".join(action_keys or ["-"]),
+                action_hint=format_action_hint(action_keys, lines),
                 action_keys=action_keys,
                 fingerprint=fingerprint,
                 detail_lines=select_detail_lines(lines),
@@ -451,7 +509,7 @@ def spawn_or_focus_window(window_name: str) -> int:
 def draw_help(stdscr: curses.window, max_y: int, width: int) -> None:
     if max_y <= 0:
         return
-    help_text = "j/k move  h help  tab filter  a approve  A approve-all  l approve-low  e/y/d act  o jump  r refresh  q quit"
+    help_text = "j/k move  1-9 choose  h help  tab filter  a approve  A approve-all  l approve-low  e/y/d act  o jump  r refresh  q quit"
     safe_addnstr(stdscr, max_y - 1, 0, help_text.ljust(width), width, curses.A_REVERSE)
 
 
@@ -464,6 +522,7 @@ def draw_help_overlay(stdscr: curses.window, max_y: int, max_x: int) -> None:
         "a          approve current item",
         "A          approve all waiting items",
         "l          approve all low-risk waiting items",
+        "1-9        choose numbered menu item",
         "e / y / d  send Enter / y+Enter / n+Enter",
         "o          jump to selected pane",
         "r          refresh",
@@ -691,6 +750,15 @@ def run_tui(refresh_interval: float) -> int:
             if key == ord("a") and target.action_keys:
                 send_keys(target.pane_id, target.action_keys)
                 last_refresh = 0.0
+            elif ord("1") <= key <= ord("9"):
+                choice = key - ord("0")
+                menu_keys = action_keys_for_menu_choice(
+                    tmux("capture-pane", "-p", "-S", f"-{CAPTURE_LINES}", "-t", target.pane_id).splitlines(),
+                    choice,
+                )
+                if menu_keys:
+                    send_keys(target.pane_id, menu_keys)
+                    last_refresh = 0.0
             elif key == ord("e"):
                 send_keys(target.pane_id, ["Enter"])
                 last_refresh = 0.0
